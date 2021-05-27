@@ -1,0 +1,5 @@
+endpoint: https://us1.prisma.sh/bruna-aleixo/fecha-conta/dev
+datamodel: datamodel.prisma
+generate:
+  - generator: javascript-client
+    output: ./generated/prisma-client/

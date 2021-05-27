@@ -1,0 +1,265 @@
+type User @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  updatedAt: DateTime! @updatedAt
+  permissions: [Permission!]! @relation(onDelete: CASCADE)
+  email: String @unique
+  password: String
+  responsibleWorkDays: [WorkDay!]! 
+}
+
+type Permission @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  user: User!
+  establishment: Establishment!
+  role: UserRole!
+}
+
+type WorkDay @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  establishment: Establishment
+  isCurrent: Boolean!
+  openDate: DateTime!
+  closeDate: DateTime
+  userResponsible: User
+  tables: [TableData!]! @relation(onDelete: CASCADE)
+  incomes: [Income!]! @relation(onDelete: CASCADE)
+  bills: [Bill!]! @relation(onDelete: CASCADE)
+  orders: [Order!]! @relation(onDelete: CASCADE)
+  orderPads: [OrderPad!]! @relation(onDelete: CASCADE)
+}
+
+type Establishment @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  name: String!
+  lat: Float! @default(value: -22.9840903)
+  long: Float! @default(value: -43.2167026)
+  restaurantId: String!
+  valueInCashRegister: Float!
+  maximumInCashRegister: Float!
+  incomeMaxReference: Int!
+  isOpen: Boolean!
+  workingDays: [WorkDay!]! 
+  permissions: [Permission!]! 
+  items: [Item!]!
+  employees: [Employee!]!
+  tables: [Table!]!
+  expenses: [Expense!]!
+  discountReasons: [String!]! @scalarList(strategy: RELATION)
+  totalInvoices: Int
+  clients: [Client!]!
+}
+
+type Employee @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  establishment: Establishment!
+  employeeId: Int! @unique
+  name: String!
+  role: String!
+  tables: [TableData!]! 
+  orderPads: [OrderPad!]! 
+  itemsOrdered: [OrderItem!]!
+  workHours: [WorkHour!]!
+  admissionDate: DateTime
+  terminationDate: DateTime
+  isActive: Boolean!
+}
+
+type WorkHour @model {
+  id: ID! @id
+  weekday: WeekDay!
+  startTime: String
+  endTime: String
+  isDayOff: Boolean
+  employee: Employee!
+}
+
+type OrderPad @model {
+  id: ID! @id
+  workDay: WorkDay
+  block: Int! 
+  firstOrderId: Int!
+  lastOrderId: Int
+  employee: Employee
+  used: Boolean!
+}
+
+type Expense @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  establishment: Establishment
+  NFE: Boolean!
+  NFEReference: String
+  expenseItems: [ExpenseItem!]! @relation(onDelete: CASCADE)
+  date: DateTime!
+  executionDate: DateTime!
+  payment: Payment @relation(name: "ExpensePayment")
+}
+
+type ExpenseItem @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  quantity: Float!
+  product: Product!
+  value: Float!
+  details: String
+}
+
+type Product @model {
+  id: ID! @id
+  name: String!
+  category: String!
+  supplier: String!
+  brand: String
+  unit: String!
+}
+
+type Income @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  workDay: WorkDay
+  reference: String! @unique
+  value: Float!
+  type: String
+}
+
+type Payment @model {
+  createdAt: DateTime! @createdAt 
+  id: ID! @id  
+  value: Float!
+  paymentType: String!
+  paymentTypeOption: String
+  checkData: CheckData @relation(link: INLINE, name: "CheckPayment", onDelete: CASCADE)    
+  bill: Bill
+  expense: Expense @relation(link: INLINE, name: "ExpensePayment") 
+  isActive: Boolean!
+}
+
+type CheckData @model { 
+  id: ID! @id
+  payment: Payment! @relation(name: "CheckPayment")  
+  checkbookId: String
+  compensationNumber: Int
+  bankNumber: Int
+}
+
+type Bill @model {
+  createdAt: DateTime! @createdAt
+  closedAt: DateTime
+  id: ID! @id
+  workDay: WorkDay!
+  tableData: TableData!
+  orders: [Order!]! @relation(onDelete: CASCADE)
+  status: BillStatus!
+  discount: Float
+  discountReason: String
+  value: Float
+  payments: [Payment!]! @relation(onDelete: CASCADE)
+  wasReopen: Boolean
+  reopenBills: [Bill!]!
+  registered: Boolean
+}
+
+type Order @model {
+  createdAt: DateTime! @createdAt
+  id: ID! @id
+  workDay: WorkDay!
+  block: Int!
+  orderId: Int!
+  bill: Bill
+  orderItems: [OrderItem!]! @relation(onDelete: CASCADE)
+  cancelled: Boolean
+  cancelationJustification: String
+  wasModified: Boolean
+  modifiedOrders: [Order!]!
+  isEmployeeOrder: Boolean
+  reuse: Boolean
+  isToGo: Boolean
+  toGoReference: String
+}
+
+type Table @model {
+  id: ID! @id
+  tableNumber: Int! @unique
+  establishment: Establishment
+  data: [TableData!]! 
+}
+
+type TableData @model {
+  id: ID! @id
+  totalOccupations: Int!
+  table: Table!
+  workDay: WorkDay!
+  waiter: Employee
+  bills: [Bill!]! @relation(onDelete: CASCADE)
+}
+
+type OrderItem @model {
+  id: ID! @id
+  quantity: Int!
+  item: Item!
+  order: Order
+  # for employee orders
+  employee: Employee
+}
+
+type Item @model {
+  id: ID! @id
+  itemId: String!
+  name: String!
+  price: Float!
+  priceToGo: Float
+  employeePrice: Float
+  category: String!
+  orderItem: [OrderItem!]! 
+  establishment: Establishment
+  canTakeToGo: Boolean
+  isActive: Boolean!
+  itemNCM: NCM 
+  hasTaxSubstitution: Boolean @default(value: false)
+}
+
+type NCM @model {
+  id: ID! @id
+  identifier: String!
+  description: String
+  items: [Item!]!
+}
+
+type Client @model {
+  id: ID! @id
+  name: String!
+  address: String!
+  complement: String
+  postCode: String!
+  telephoneNumber: String! @unique
+  establishment: Establishment!
+  distanceKm: String!
+  distanceTime: String!
+}
+
+enum BillStatus {
+  PAID,
+  OPEN,
+  CLOSED
+}
+
+enum UserRole {
+  EDITOR, 
+  MODERATOR,
+  ADMIN
+}
+
+enum WeekDay {
+  MONDAY,
+  TUESDAY,
+  WEDNESDAY,
+  THURSDAY,
+  FRIDAY,
+  SATURDAY,
+  SUNDAY
+}

@@ -1,0 +1,434 @@
+scalar DateTime
+
+type Query {
+  userPermissions(userId: ID!): [Permission!]!
+  establishment(establishmentId: ID!): Establishment!
+  clients(establishmentId: ID!): [Client!]!
+  activeWorkDay(accountId: ID!): [WorkDay!]!
+  menuItems(accountId: ID!): [Item!]!
+  NCMs: [NCM!]!
+  tables(accountId: ID!): [Table!]!
+  tableData(workDayId: ID!): [TableData!]!
+  employees(accountId: ID!): [Employee!]!
+  orderPads(workDayId: ID!): [OrderPad!]!
+  orderPadsStart(accountId: ID!): [WorkDay!]!
+  bills(workDayId: ID!): [Bill!]!
+  accountBills(establishmentId: ID!, billIds: [ID], wasReopen: Boolean, fromDate: DateTime, toDate: DateTime, firstTable: Int, lastTable: Int, skip: Int, max: Int): [Bill!]!
+  orders(workDayId: ID!, skip: Int, max: Int): [Order!]!
+  orderItemsReport(accountId: ID!, fromDate: DateTime, toDate: DateTime, skip: Int, max: Int): [OrderItem!]!
+  accountOrders(accountId: ID!, orderIds: [ID], billIds: [ID], fromDate: DateTime, toDate: DateTime, skip: Int, max: Int): [Order!]!
+  employeeOrders(accountId: ID!, fromDate: DateTime!): [Order!]!
+  reusedOrders(accountId: ID!): [Order!]!
+  payments(workDayId: ID!): [Payment!]!
+  accountPayments(establishmentId: ID!, fromDate: DateTime, toDate: DateTime, skip: Int, max: Int): [Payment!]!
+  workDayIncomes(workDayId: ID!): [Income!]!
+  incomes(accountId: ID!): [Income!]!
+  products: [Product!]!
+  expenses(accountId: ID!): [Expense!]!
+  expenseItems(productId: ID!): [ExpenseItem!]!
+}
+
+type Mutation {
+  signup(email: String!, password: String!, name: String): AuthPayload!
+  login(email: String!, password: String!): AuthPayload!
+  
+  updateEstablishment(establishmentId: ID!, incomeMaxReference: Int,
+    valueInCashRegister: Float, isOpen: Boolean): ObjectId
+  createClient(establishmentId: ID!, telephoneNumber: String!, name: String!, address: String!, 
+    complement: String, postCode: String!, distanceKm: String!, distanceTime: String!): ObjectId
+
+  # WorkDay
+  createWorkDay(establishmentId: ID!, userResponsibleId: ID!, openDate: DateTime!): ObjectId
+  updateWorkDay(id: ID!, isCurrent: Boolean, closeDate: DateTime!): ObjectId
+
+  # Item
+  createItem(accountId: ID!, itemId: String!, name: String!, category: String!, itemNCMId: ID!,
+    price: Float!, priceToGo: Float, employeePrice: Float, canTakeToGo: Boolean): ObjectId!
+  updateItem(id: ID!, name: String, itemId: String, category: String, itemNCMId: ID, 
+    hasTaxSubstitution: Boolean, price: Float, priceToGo: Float, employeePrice: Float, 
+    isActive: Boolean): ObjectId
+  
+  # Table
+  createTable(accountId: ID!, tableNumber: Int!): ObjectId!
+  createTableData(workDayId: ID!, tableId: ID!, waiterId: ID): ObjectId!
+  updateTableData(id: ID!, waiterId: ID!, totalOccupations: Int): ObjectId
+  
+  # Employee
+  createEmployee(accountId: ID!, employeeId: Int!, name: String!, 
+    role: String!, admissionDate: DateTime!): ObjectId!
+  inactivateEmployee(id: ID!, terminationDate: DateTime): ObjectId
+  createWorkHour(weekday: WeekDay!, employeeId: ID!, startTime: String, endTime: String, 
+    isDayOff: Boolean): ObjectId!
+  updateWorkHour(id: ID!, weekday: WeekDay, startTime: String, endTime: String, isDayOff: Boolean): ObjectId
+  updateEmployee(id: ID!, role: String): ObjectId
+
+  # OrderPad
+  createOrderPad(workDayId: ID!, block: Int!, firstOrderId: Int!, 
+    employeeId: ID, used: Boolean!): ObjectId!
+  updateOrderPad(id: ID!, block: Int, lastOrderId: Int, 
+    employeeId: ID, used: Boolean): ObjectId
+  
+  # Bill
+  createBill(workDayId: ID!, tableDataId: ID!, newOrders: [CreateOrderData], 
+    existingOrders: [ExistingObject]): Bill!
+  updateBill(id: ID!, status: BillStatus, value: Float, closedAt: DateTime, 
+    discount: Float, discountReason: String, registered: Boolean, 
+    existingOrders: [ExistingObject]): ObjectId
+  updateBillTable(id: ID!, tableDataId: ID): ObjectId
+  reopenBill(id: ID!, workDayId: ID, tableDataId: ID, orders: [CreateOrderData], 
+    existingBillId: ID): Bill!
+  deleteBill(id: ID!): ObjectId 
+  deleteManyBills(establishmentId: ID!, registered: Boolean!): Int
+
+  # Order
+  createOrder(workDayId: ID!, billId: ID, block: Int!, orderId: Int!, 
+    wasModified: Boolean!, cancelled: Boolean!, isEmployeeOrder: Boolean!, 
+    reuse: Boolean!, isToGo: Boolean!, toGoReference: String,
+    orderItems: [CreateOrderItemData]): Order!
+  updateOrder(id: ID!, block: Int, orderId: Int, cancelled: Boolean, 
+    cancelationJustification: String): Order
+  modifyOrder(id: ID!, modifiedOrder: CreateOrderData!): Order
+  updateOrderBill(id: ID!, billId: ID): ObjectId
+
+  # Payment
+  createPayment(value: Float!, paymentType: String!, paymentTypeOption: String, 
+    billId: ID, isActive: Boolean, compensationNumber: Int, bankNumber: Int): ObjectId
+  inactivatePayment(id: ID!): ObjectId
+
+  # Income
+  createIncome(workDayId: ID!, reference: String!, value: Float!, type: String!): ObjectId
+
+  # Expense
+  createExpense(accountId: ID!, date: DateTime!, executionDate: DateTime!, 
+    value: Float!, paymentType: String, NFE: Boolean!, NFEReference: String, expenseItems: [CreateExpenseItemData]): Expense!   
+  deleteExpense(id: ID!): ObjectId 
+
+  # Product
+  createProduct(name: String!, category: String!, supplier: String!, brand: String, unit: String!): Product! 
+  updateProduct(id: ID!, name: String, category: String, supplier: String, brand: String, unit: String): ObjectId
+  deleteProduct(id: ID!): ObjectId 
+}
+
+input ExistingObject {
+  id: ID!
+}
+
+input CreateOrderData {
+  workDayId: ID!,
+  block: Int!,
+  orderId: Int!,
+  billId: ID,
+  cancelled: Boolean!,
+  cancelationJustification: String,
+  isEmployeeOrder: Boolean!,
+  isToGo: Boolean!,
+  toGoReference: String,
+  reuse: Boolean!,
+  wasModified: Boolean!,
+  orderItems: [CreateOrderItemData],
+  modifiedOrders: [CreateOrderData]
+}
+
+input CreateOrderItemData {
+  itemId: ID!,  
+  quantity: Int!
+  employeeId: ID
+}
+
+input CreateExpenseData {
+  createdAt: DateTime!
+  id: ID!
+  establishmentId: ID!
+  NFE: Boolean!
+  NFEReference: String
+  date: DateTime!
+  executionDate: DateTime!
+  paymentId: ID!
+  expenseItems: [CreateExpenseItemData]
+}
+
+input CreateExpenseItemData {
+  quantity: Float!
+  productId: ID!
+  value: Float!
+  details: String
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type ObjectId {
+  id: ID!
+}
+
+type ItemData {
+  id: ID!
+  itemId: String!
+}
+
+type User {
+  createdAt: DateTime! 
+  id: ID!
+  updatedAt: DateTime! 
+  permissions: [Permission!]! 
+  email: String 
+  password: String
+  responsibleWorkDays: [WorkDay!]! 
+}
+
+type Permission {
+  createdAt: DateTime! 
+  id: ID!
+  user: User!
+  establishment: Establishment!
+  role: UserRole!
+}
+
+type WorkDay {
+  createdAt: DateTime! 
+  id: ID!
+  establishment: Establishment
+  isCurrent: Boolean!
+  openDate: DateTime!
+  closeDate: DateTime
+  userResponsible: User
+  tables: [TableData!]!
+  incomes: [Income!]!
+  bills: [Bill!]!
+  orders: [Order!]! 
+  orderPads: [OrderPad!]! 
+}
+
+type Establishment {
+  createdAt: DateTime! 
+  id: ID!
+  name: String!
+  lat: Float!
+  long: Float!
+  restaurantId: String!
+  incomeMaxReference: Int!
+  valueInCashRegister: Float!
+  maximumInCashRegister: Float!
+  isOpen: Boolean!
+  workingDays: [WorkDay!]! 
+  permissions: [Permission!]! 
+  items: [Item!]!
+  employees: [Employee!]!
+  tables: [Table!]!
+  expenses: [Expense!]!
+  discountReasons: [String!]!
+  totalInvoices: Int
+}
+
+type Employee {
+  createdAt: DateTime! 
+  id: ID!
+  establishment: Establishment!
+  employeeId: Int! 
+  name: String!
+  role: String!
+  tables: [TableData!]! 
+  orderPads: [OrderPad!]! 
+  itemsOrdered: [OrderItem!]!
+  workHours: [WorkHour!]!
+  admissionDate: DateTime
+  terminationDate: DateTime
+  isActive: Boolean!
+}
+
+type WorkHour {
+  id: ID!
+  weekday: WeekDay!
+  startTime: String
+  endTime: String
+  isDayOff: Boolean
+  employee: Employee!
+}
+
+type OrderPad {
+  id: ID!
+  workDay: WorkDay
+  block: Int! 
+  firstOrderId: Int!
+  lastOrderId: Int
+  employee: Employee
+  used: Boolean!
+}
+
+type Expense {
+  createdAt: DateTime!
+  id: ID!
+  establishment: Establishment
+  date: DateTime!
+  executionDate: DateTime!
+  NFE: Boolean!
+  NFEReference: String
+  payment: Payment
+  expenseItems:[ExpenseItem!]!
+}
+
+type ExpenseItem {
+  createdAt: DateTime!
+  id: ID!
+  quantity: Float!
+  product: Product!
+  value: Float!
+  details: String
+}
+
+type Product {
+  id: ID!
+  name: String!
+  category: String!
+  supplier: String!
+  brand: String
+  unit: String!
+}
+
+type Income {
+  createdAt: DateTime! 
+  id: ID!
+  workDay: WorkDay
+  reference: String! 
+  value: Float!
+  type: String
+}
+
+type Payment {
+  createdAt: DateTime!  
+  id: ID!  
+  value: Float!
+  paymentType: String!
+  paymentTypeOption: String
+  checkData: CheckData 
+  bill: Bill
+  expense: Expense
+  isActive: Boolean!
+}
+
+type CheckData { 
+  id: ID!
+  payment: Payment!
+  checkbookId: String
+  compensationNumber: Int
+  bankNumber: Int
+}
+
+type Bill {
+  createdAt: DateTime! 
+  closedAt: DateTime
+  id: ID!
+  workDay: WorkDay!
+  tableData: TableData!
+  orders: [Order!]! 
+  status: BillStatus!
+  discount: Float
+  discountReason: String
+  value: Float
+  payments: [Payment!]! 
+  wasReopen: Boolean
+  reopenBills: [Bill!]!
+  registered: Boolean
+}
+
+type Order {
+  createdAt: DateTime! 
+  id: ID!
+  workDay: WorkDay!
+  block: Int!
+  orderId: Int!
+  bill: Bill
+  orderItems: [OrderItem!]!
+  cancelled: Boolean
+  cancelationJustification: String
+  wasModified: Boolean
+  modifiedOrders: [Order!]!
+  isEmployeeOrder: Boolean
+  reuse: Boolean
+  isToGo: Boolean
+  toGoReference: String
+}
+
+type Table {
+  id: ID!
+  tableNumber: Int! 
+  establishment: Establishment
+  data: [TableData!]! 
+}
+
+type TableData {
+  id: ID!
+  totalOccupations: Int!
+  table: Table!
+  workDay: WorkDay!
+  waiter: Employee
+  bills: [Bill!]!
+}
+
+type OrderItem {
+  id: ID!
+  quantity: Int!
+  item: Item!
+  order: Order
+  # for employee orders
+  employee: Employee
+}
+
+type Item {
+  id: ID!
+  itemId: String!
+  name: String!
+  price: Float!
+  priceToGo: Float
+  employeePrice: Float
+  category: String!
+  orderItem: [OrderItem!]! 
+  establishment: Establishment
+  canTakeToGo: Boolean
+  isActive: Boolean!
+  itemNCM: NCM 
+  hasTaxSubstitution: Boolean
+}
+
+type NCM {
+  id: ID!
+  identifier: String!
+  description: String
+  items: [Item!]!
+}
+
+type Client {
+  id: ID!
+  name: String!
+  address: String!
+  complement: String
+  postCode: String!
+  telephoneNumber: String!
+  establishment: Establishment!
+  distanceKm: String!
+  distanceTime: String!
+}
+
+enum BillStatus {
+  PAID,
+  OPEN,
+  CLOSED
+}
+
+enum UserRole {
+  EDITOR, 
+  MODERATOR,
+  ADMIN
+}
+
+enum WeekDay {
+  MONDAY,
+  TUESDAY,
+  WEDNESDAY,
+  THURSDAY,
+  FRIDAY,
+  SATURDAY,
+  SUNDAY
+}

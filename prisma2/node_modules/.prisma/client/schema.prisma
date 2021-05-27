@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Bill {
+  id                  String     @default(cuid()) @id @db.VarChar(30)
+  createdAt           DateTime   @default(now())
+  closedAt            DateTime?
+  status              BillStatus @map("status")
+  discount            Float?
+  discountReason      String?
+  value               Float?
+  valueAfterDiscount  Float?
+  wasReopen           Boolean?
+  registered          Boolean?
+  workDayId           String?    @map("workDay") @db.VarChar(30)
+  tableDataId         String?    @map("tableData") @db.VarChar(30)
+  tableData           TableData? @relation(fields: [tableDataId], references: [id])
+  workDay             WorkDay?   @relation(fields: [workDayId], references: [id])
+  orders              Order[]
+  payments            Payment[]
+  reopenBillsId       Bill[]     @relation("BillToBill")
+  reopenBills         Bill[]     @relation("BillToBill")
+}
+
+model CheckData {
+  id                 String  @default(cuid()) @id @db.VarChar(30)
+  checkbookId        String?
+  compensationNumber Int?
+  bankNumber         Int?
+  payment            Payment?
+}
+
+model Client {
+  id              String         @default(cuid()) @id @db.VarChar(30)
+  name            String
+  address         String
+  complement      String?
+  postCode        String
+  telephoneNumber String         @unique
+  distanceKm      String
+  distanceTime    String
+  establishmentId String?        @map("establishment") @db.VarChar(30)
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+}
+
+model Employee {
+  id              String         @default(cuid()) @id @db.VarChar(30)
+  createdAt       DateTime       @default(now())
+  employeeId      Int            @unique
+  name            String
+  role            String
+  admissionDate   DateTime?
+  terminationDate DateTime?
+  isActive        Boolean
+  establishmentId String?        @map("establishment") @db.VarChar(30)
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+  itemsOrdered    OrderItem[]
+  orderPads       OrderPad[]
+  tables          TableData[]
+  workHours       WorkHour[]
+}
+
+model Establishment {
+  id                    String       @default(cuid()) @id @db.VarChar(30)
+  createdAt             DateTime     @default(now())
+  name                  String
+  lat                   Float       @default("-22.9840903")
+  long                  Float       @default("-43.2167026")
+  restaurantId          String
+  valueInCashRegister   Float
+  maximumInCashRegister Float
+  incomeMaxReference    Int
+  isOpen                Boolean
+  totalInvoices         Int?
+  discountReasons       String[]
+  clients               Client[]
+  employees             Employee[]
+  expenses              Expense[]
+  items                 Item[]
+  permissions           Permission[]
+  tables                Table[]
+  workingDays           WorkDay[]
+}
+
+model Expense {
+  id              String         @default(cuid()) @id @db.VarChar(30)
+  createdAt       DateTime       @default(now())
+  NFE             Boolean
+  NFEReference    String?
+  date            DateTime
+  executionDate   DateTime
+  establishmentId String?        @map("establishment") @db.VarChar(30)
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+  payment         Payment?
+  expenseItems    ExpenseItem[]
+}
+
+model ExpenseItem {
+  id        String    @default(cuid()) @id @db.VarChar(30)
+  createdAt DateTime  @default(now())
+  quantity  Float
+  value     Float
+  details   String?
+  productId String?   @map("product") @db.VarChar(30)
+  product   Product?  @relation(fields: [productId], references: [id])
+  Expense   Expense[]
+}
+
+model Income {
+  id        String   @default(cuid()) @id @db.VarChar(30)
+  createdAt DateTime @default(now())
+  reference String   @unique
+  value     Float
+  type      String?
+  workDayId String?  @map("workDay") @db.VarChar(30)
+  workDay   WorkDay? @relation(fields: [workDayId], references: [id])
+}
+
+model Item {
+  id                 String         @default(cuid()) @id @db.VarChar(30)
+  itemId             String
+  name               String
+  price              Float
+  priceToGo          Float?
+  employeePrice      Float?
+  category           String
+  canTakeToGo        Boolean?
+  isActive           Boolean
+  hasTaxSubstitution Boolean?       @default(false)
+  establishmentId    String?        @map("establishment") @db.VarChar(30)
+  itemNCMId          String?        @map("itemNCM") @db.VarChar(30)
+  establishment      Establishment? @relation(fields: [establishmentId], references: [id])
+  itemNCM            NCM?           @relation(fields: [itemNCMId], references: [id])
+  orderItem          OrderItem[]
+}
+
+model NCM {
+  id          String  @default(cuid()) @id @db.VarChar(30)
+  identifier  String
+  description String?
+  items       Item[]
+}
+
+model Order {
+  id                       String      @default(cuid()) @id @db.VarChar(30)
+  createdAt                DateTime    @default(now())
+  block                    Int
+  orderId                  Int
+  cancelled                Boolean?
+  cancelationJustification String?
+  wasModified              Boolean?
+  isEmployeeOrder          Boolean?
+  reuse                    Boolean?
+  isToGo                   Boolean?
+  toGoReference            String?
+  workDayId                String?     @map("workDay") @db.VarChar(30)
+  billId                   String?     @map("bill") @db.VarChar(30)
+  bill                     Bill?       @relation(fields: [billId], references: [id])
+  workDay                  WorkDay?    @relation(fields: [workDayId], references: [id])
+  orderItems               OrderItem[]
+  modifiedOrdersId         Order[]  @relation("OrderToOrder")
+  modifiedOrders           Order[]  @relation("OrderToOrder")
+}
+
+model OrderItem {
+  id         String    @default(cuid()) @id @db.VarChar(30)
+  quantity   Int
+  orderId    String?   @map("order") @db.VarChar(30)
+  employeeId String?   @map("employee") @db.VarChar(30)
+  itemId     String?   @map("item") @db.VarChar(30)
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  item       Item?     @relation(fields: [itemId], references: [id])
+  order      Order?    @relation(fields: [orderId], references: [id])
+}
+
+model OrderPad {
+  id           String    @default(cuid()) @id @db.VarChar(30)
+  block        Int
+  firstOrderId Int
+  lastOrderId  Int?
+  used         Boolean
+  workDayId    String?   @map("workDay") @db.VarChar(30)
+  employeeId   String?   @map("employee") @db.VarChar(30)
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  workDay      WorkDay?  @relation(fields: [workDayId], references: [id])
+}
+
+model Payment {
+  id                String     @default(cuid()) @id @db.VarChar(30)
+  createdAt         DateTime   @default(now())
+  value             Float
+  paymentType       String
+  paymentTypeOption String?
+  isActive          Boolean
+  expenseId         String?    @map("expense") @unique @db.VarChar(30)
+  checkDataId       String?    @map("checkData") @unique @db.VarChar(30)
+  billId            String?    @map("bill") @db.VarChar(30)
+  bill              Bill?      @relation(fields: [billId], references: [id])
+  checkData         CheckData? @relation(fields: [checkDataId], references: [id])
+  expense           Expense?   @relation(fields: [expenseId], references: [id])
+}
+
+model Permission {
+  id              String         @default(cuid()) @id @db.VarChar(30)
+  createdAt       DateTime       @default(now())
+  role            UserRole       @map("role")
+  userId          String?        @map("user") @db.VarChar(30)
+  establishmentId String?        @map("establishment") @db.VarChar(30)
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id          String        @default(cuid()) @id @db.VarChar(30)
+  name        String
+  category    String
+  supplier    String
+  brand       String?
+  unit        String
+  ExpenseItem ExpenseItem[]
+}
+
+model Table {
+  id              String         @default(cuid()) @id @db.VarChar(30)
+  tableNumber     Int            @unique
+  establishmentId String?        @map("establishment") @db.VarChar(30)
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+  data            TableData[]
+}
+
+model TableData {
+  id               String    @default(cuid()) @id @db.VarChar(30)
+  totalOccupations Int
+  workDayId        String?   @map("workDay") @db.VarChar(30)
+  tableId          String?   @map("table") @db.VarChar(30)
+  waiterId         String?   @map("waiter") @db.VarChar(30)
+  table            Table?    @relation(fields: [tableId], references: [id])
+  waiter           Employee? @relation(fields: [waiterId], references: [id])
+  workDay          WorkDay?  @relation(fields: [workDayId], references: [id])
+  bills            Bill[]
+}
+
+model User {
+  id                  String       @default(cuid()) @id @db.VarChar(30)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  email               String?      @unique
+  password            String?
+  permissions         Permission[]
+  responsibleWorkDays WorkDay[]
+}
+
+model WorkDay {
+  id                String         @default(cuid()) @id @db.VarChar(30)
+  createdAt         DateTime       @default(now())
+  isCurrent         Boolean
+  openDate          DateTime
+  closeDate         DateTime?
+  establishmentId   String?        @map("establishment") @db.VarChar(30)
+  userResponsibleId String?        @map("userResponsible") @db.VarChar(30)
+  establishment     Establishment? @relation(fields: [establishmentId], references: [id])
+  userResponsible   User?          @relation(fields: [userResponsibleId], references: [id])
+  bills             Bill[]
+  incomes           Income[]
+  orders            Order[]
+  orderPads         OrderPad[]
+  tables            TableData[]
+}
+
+model WorkHour {
+  id         String    @default(cuid()) @id @db.VarChar(30)
+  weekday    WeekDay   @map("weekday")
+  startTime  String?
+  endTime    String?
+  isDayOff   Boolean?
+  employeeId String?   @map("employee") @db.VarChar(30)
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+}
+
+enum BillStatus {
+  PAID
+  OPEN
+  CLOSED
+}
+
+enum UserRole {
+  EDITOR
+  MODERATOR
+  ADMIN
+}
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
