@@ -1,4 +1,4 @@
-## Project structura
+## Project structure
 
 This project contains two main folders, prisma1 and prisma2. In each one, the src/ folder contains the necessary resolvers for running the test query.  
 
